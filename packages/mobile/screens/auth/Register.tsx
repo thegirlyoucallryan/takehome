@@ -5,21 +5,53 @@ import { StackScreens } from "../../App";
 import Card from "../components/card";
 import Input from "../components/Input";
 import { useState } from "react";
+import axios from "axios";
+import { storeData } from "../../helpers";
 
 export default function Register({}: NativeStackScreenProps<
   StackScreens,
   "Register"
 >) {
-  const [username, setUsername] = useState<string >('');
+  const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [password2, setPassword2] = useState<string>("");
-  const disabled = !(username?.length > 1) || !!(password !== password2)
-  
+  const [error, setErrorMessage] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
+  const disabled = !(username?.length > 1) || !!(password !== password2);
 
-  const registerHandler = () => {
-   
-    console.log("sign in");
+  const registerHandler = async () => {
+    try {
+      const response = await axios.post(
+        `${process.env.EXPO_PUBLIC_WEBAPP_ROOT}/auth/register`,
+        {
+          username,
+          password,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const { data, success, message } = response.data;
+      if (success) {
+        const { token } = data;
+
+        setSuccess(message);
+        await storeData("TAKE_HOME_TOKEN", token);
+        setErrorMessage("");
+        setUsername("");
+        setPassword("");
+        setPassword2("");
+      } else {
+        setErrorMessage(data.message);
+      }
+    } catch (error: any) {
+      setErrorMessage(`${error.response.data.message} Please try again.`);
+    }
   };
+
   return (
     <View style={styles.container}>
       <StatusBar style="auto" />
@@ -48,7 +80,7 @@ export default function Register({}: NativeStackScreenProps<
               onChangeText: (text: string) => setPassword(text),
             }}
           />
-           <Input
+          <Input
             label="Reenter Password"
             isHidden={true}
             textInputConfig={{
@@ -64,11 +96,38 @@ export default function Register({}: NativeStackScreenProps<
         <Pressable
           onPress={registerHandler}
           disabled={disabled}
-          style={{...styles.button, backgroundColor: disabled ? 'grey' : "#6495ED"}}
+          style={{
+            ...styles.button,
+            backgroundColor: disabled ? "grey" : "#6495ED",
+          }}
         >
           <Text style={styles.text}>Sign up</Text>
         </Pressable>
       </Card>
+      <View>
+        {error && (
+          <Text
+            style={{
+              ...styles.messageText,
+              backgroundColor: "#ef9a9a",
+              color: "#f44336",
+            }}
+          >
+            {error}
+          </Text>
+        )}
+        {success && (
+          <Text
+            style={{
+              ...styles.messageText,
+              color: "#FFF5EE",
+              backgroundColor: "#2E8B57",
+            }}
+          >
+            {success}
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -100,5 +159,11 @@ const styles = StyleSheet.create({
     color: "white",
     textAlign: "center",
     borderRadius: 20,
+  },
+  messageText: {
+    alignSelf: "center",
+    fontSize: 25,
+    padding: 6,
+    borderRadius: 15,
   },
 });

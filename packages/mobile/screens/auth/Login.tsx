@@ -1,10 +1,12 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Button, View, Text, Pressable } from "react-native";
+import { StyleSheet, View, Text, Pressable } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { StackScreens } from "../../App";
 import Card from "../components/card";
 import Input from "../components/Input";
 import { useState } from "react";
+import axios from "axios";
+import { storeData } from "../../helpers";
 
 export default function Login({}: NativeStackScreenProps<
   StackScreens,
@@ -12,32 +14,40 @@ export default function Login({}: NativeStackScreenProps<
 >) {
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [error, setErrorMessage] = useState<string>('') 
-  const disabled = !(username?.length > 1) || !(password.length > 1)
+  const [error, setErrorMessage] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
+  const [disabled] = useState( !(username?.length > 1) || !(password.length > 1))
+  
 
-  const signInHandler = async() => {
-    console.log('pressed')
+  const signInHandler = async () => {
     try {
-      const response = await fetch(`http://68.204.113.54/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await axios.post(
+        `${process.env.EXPO_PUBLIC_WEBAPP_ROOT}/auth/login`,
+        {
+          username,
+          password,
         },
-        body: JSON.stringify({ username, password }),
-      });
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-      const data = await response.json();
+      const { data, success, message } = response.data
 
-      if (data.success) {
-        // Login successful, you can navigate to the next screen or perform other actions
-        console.log('Login successful');
+      if (success) {
+        const { token } = data;
+        setSuccess(message);
+        await storeData("TAKE_HOME_TOKEN", token);
+        setErrorMessage("");
+        setUsername("");
+        setPassword("");
       } else {
-        // Login failed, update error message
-        setErrorMessage(data.message);
+        setErrorMessage(message);
       }
-    } catch (error) {
-      console.error('An error occurred during login:', error);
-      setErrorMessage('An error occurred during login. Please try again.');
+    } catch (error: any) {
+      setErrorMessage(`${error.response.data.message} Please try again.`);
     }
   };
 
@@ -49,12 +59,11 @@ export default function Login({}: NativeStackScreenProps<
           <Input
             label="User Name"
             textInputConfig={{
+              autocapitalize: "none",
               autoFocus: true,
               minLength: 4,
               placeholder: "enter your username",
-
               value: username,
-
               onChangeText: (text: string) => setUsername(text),
             }}
           />
@@ -62,9 +71,9 @@ export default function Login({}: NativeStackScreenProps<
             label="Password"
             isHidden={true}
             textInputConfig={{
-              autoFocus: true,
+              autocapitalize: "none",
               minLength: 4,
-              placeholder: "******",
+              placeholder: "********",
               value: password,
               onChangeText: (text: string) => setPassword(text),
             }}
@@ -73,12 +82,39 @@ export default function Login({}: NativeStackScreenProps<
 
         <Pressable
           onPress={signInHandler}
-     
-          style={{...styles.button, backgroundColor: disabled ? 'grey' : "#6495ED"}}
+       
+          style={{
+            ...styles.button,
+            backgroundColor: disabled ? "grey" : "#6495ED",
+          }}
         >
           <Text style={styles.text}>Sign in</Text>
         </Pressable>
       </Card>
+      <View>
+        {error && (
+          <Text
+            style={{
+              ...styles.messageText,
+              backgroundColor: "#ef9a9a",
+              color: "#f44336",
+            }}
+          >
+            {error}
+          </Text>
+        )}
+        {success && (
+          <Text
+            style={{
+              ...styles.messageText,
+              color: "#FFF5EE",
+              backgroundColor: "#2E8B57",
+            }}
+          >
+            {success}
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -110,5 +146,11 @@ const styles = StyleSheet.create({
     color: "white",
     textAlign: "center",
     borderRadius: 20,
+  },
+  messageText: {
+    alignSelf: "center",
+    fontSize: 25,
+    padding: 6,
+    borderRadius: 15,
   },
 });

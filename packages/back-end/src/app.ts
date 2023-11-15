@@ -7,6 +7,7 @@ import IRoute from './types/IRoute';
 import cookieParser = require('cookie-parser');
 import config from './config'
 
+
 const app = express();
 
 // Attach any middleware

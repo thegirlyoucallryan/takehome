@@ -1,9 +1,10 @@
 import IRoute from '../types/IRoute';
 import {Router} from 'express';
-import {compareSync} from 'bcrypt';
 import {attachSession} from '../middleware/auth';
 import {sequelize, Session, User} from '../services/db';
 import {randomBytes} from 'crypto';
+import { compareSync, hashSync } from 'bcrypt';
+
 
 const AuthRouter: IRoute = {
   route: '/auth',
@@ -111,8 +112,56 @@ const AuthRouter: IRoute = {
     });
 
     // Attempt to register
-    router.post('/register', (req, res) => {
-      // TODO
+    router.post('/register', async(req, res) => {
+      const { username, password } = req.body;
+
+      try {
+        // Check if the username already exists
+        const existingUser = await User.findOne({
+          where: sequelize.where(
+            sequelize.fn('lower', sequelize.col('username')),
+            sequelize.fn('lower', username),
+          ),
+        }).catch(err => console.error('User lookup failed.', err));
+    
+        if (existingUser) {
+          return res.status(400).json({
+            success: false,
+            message: 'Username already exists.',
+          });
+        }
+    
+        // Create a new user
+        const newUser = await User.create({
+          username,
+          password: hashSync(password, 10), // Hash the password before storing it
+        });
+    
+        if (!newUser) {
+          return passError('Failed to create user.', null, res);
+        }
+        const sessionToken = randomBytes(32).toString('hex');
+        let session;
+        try {
+          // Persist the token to the database.
+          session = await Session.create({
+            token: sessionToken,
+            user: newUser.dataValues.id,
+          });
+        } catch (e) {
+          return passError('Failed to create session.', e, res);
+        }
+    
+        return res.json({
+          success: true,
+          message: 'User registered successfully.',
+          data: {
+            token: sessionToken,
+          },
+        });
+      } catch (error) {
+        return passError('Registration failed.', error, res);
+      }
     });
 
     // Log out

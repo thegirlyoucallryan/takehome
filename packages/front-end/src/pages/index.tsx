@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import Head from 'next/head';
 import {Inter} from '@next/font/google';
 import {GetServerSidePropsContext} from 'next';
+import { useEffect, useState } from 'react';
 
 const inter = Inter({subsets: ['latin']});
 
@@ -9,7 +10,10 @@ export async function getServerSideProps(ctx: GetServerSidePropsContext) {
   // if SESSION_TOKEN is set, then hit our back-end to check authentication
   // status. if the token is valid, then we'll get back the user's info and pass
   // it to the HomeProps object.
-  if (ctx.req.cookies?.SESSION_TOKEN) {
+  const { token } = ctx.query;
+
+  if (ctx.req.cookies?.SESSION_TOKEN || token) {
+   
     const authRes = await fetch(`http://${process.env.BACK_END_HOST}:50000/auth`, {
       method: 'GET',
       headers: {
@@ -57,6 +61,7 @@ export type HomeProps = {
 export default function Home({
   sess,
 }: HomeProps) {
+ 
   return (
     <>
       <Head>
